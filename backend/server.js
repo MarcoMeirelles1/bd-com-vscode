@@ -2,7 +2,7 @@ const express = require('express');
 const db = require('./db');
 const app = express();
 app.use(express.json());
-const port = 3000;
+const port = 3005;
 
 let veiculos = [];
 
@@ -67,63 +67,103 @@ app.delete('/deletar/id/:id', (req, res) => {
     const { id } = req.params;
     const veiculoIndex = veiculos.findIndex(v => v.id == id);
 
-    if (veiculoIndex !== -1) {
-        veiculos.splice(veiculoIndex, 1); // para remover o splice e 1 só
-        res.send('Veículo deletado com sucesso');
-    } else {
-
-        res.status(404).send('Veículo não encontrado');
+    db.query(
+        `DELETE FROM veiculos WHERE id=?`,
+        [number(id)],
+        function(err, results, fields){
+        if (err) {
+            console.error('Erro na inserção');
+            return;
+        }
+        console.log(results);
+        console.log(fields);
+        res.send(`Veículo atualizado!\n${id}\nMarca: ${marca} \nModelo: ${modelo} \nAno: ${ano} \nCor: ${cor} \nProprietário: ${proprietario}`);
     }
+
+    );
+
 });
 
 // deletar por modelo
 app.delete('/deletar/modelo/:modelo', (req, res) => {
     const { modelo } = req.params;
-    const veiculosAntes = veiculos.length; // lenght ver o tamnaho da array
 
-    veiculos = veiculos.filter(v => v.modelo !== modelo);
-    const veiculosDeletados = veiculosAntes - veiculos.length;
+    db.query(
+        `DELETE FROM veiculos WHERE modelo = ?`,
+        [(modelo)],
+        function(err, results, fields) {
+            if (err) {
+                console.error('Erro na deleção:', err);
+                return res.status(500).json({ error: 'Erro ao deletar veículo' });
+            }
 
-    if (veiculosDeletados > 0) {
-        res.send(`${veiculosDeletados} veículo(s) deletado(s) com sucesso`);
-    } else {
-        res.status(404).send('Nenhum veículo encontrado com esse modelo');
-    }
+            // Verifica se algum veículo foi deletado
+            if (results.affectedRows === 0) {
+                return res.status(404).json({ message: 'Veículo não encontrado' });
+            }
+
+            res.json({ message: `Veículo do modelo "${modelo}" deletado com sucesso!` });
+        }
+    );
 });
+
 
 // selecionar por ID
 app.get('/veiculos/:id', (req, res) => {
+
     const { id } = req.params;
     const veiculo = veiculos.find(v => v.id == id); // v recebe v.id igual ao id
 
-    if (veiculo) {
-        res.json(veiculo);
-    } else {
-        res.status(404).send('Veículo não encontrado');
-    }
+    db.query(
+        `SELECT * FROM veiculos WHERE id = ?`,
+        [Number(id)],
+        function (err, results, fields) {
+            if (err) {
+                console.error('Erro na consulta:', err);
+                return res.status(500).json({ error: 'Erro ao consultar veículos' });
+            }
+            // Retorna os resultados como um objeto JSON
+            return res.json(results);
+        }
+    );
 });
+
 
 // selecionar por ano
 app.get('/veiculos/ano/:ano', (req, res) => {
     const { ano } = req.params;
     const veiculosAno = veiculos.filter(v => v.ano == ano);
 
-    if (veiculosAno.length > 0) {
-        res.json(veiculosAno);
-    } else {
-        res.status(404).send('Nenhum veículo encontrado para o ano especificado');
-    }
+    db.query(
+        `SELECT * FROM veiculos WHERE ano = ?`,
+        [Number(ano)],
+        function (err, results, fields) {
+            if (err) {
+                console.error('Erro na consulta:', err);
+                return res.status(500).json({ error: 'Erro ao consultar veículos' });
+            }
+            // Retorna os resultados como um objeto JSON
+            return res.json(results);
+        }
+    );
 });
 
 // selecionar todos os veículos da cor AZUL
 app.get('/veiculos/cor/azul', (req, res) => {
-    const veiculosAzuis = veiculos.filter(v => v.cor.toLowerCase() === 'azul'); // toLowerCase converte p letra minuscula
-
+    const veiculosAzuis = veiculos.filter(v => v.cor.toLowerCase() === 'azul');
     if (veiculosAzuis.length > 0) {
-        res.json(veiculosAzuis);
-    } else {
-        res.status(404).send('Nenhum veículo encontrado da cor azul');
+        return res.json(veiculosAzuis);
     }
+    db.query(
+        `SELECT * FROM veiculos WHERE cor = 'azul'`,
+        function (err, results, fields) {
+            if (err) {
+                console.error('Erro na consulta:', err);
+                return res.status(500).json({ error: 'Erro ao consultar veículos' });
+            }
+            return res.json(results);
+        }
+    );
 });
 
 app.listen(port, () => {
